@@ -39,6 +39,8 @@ runs:
           --env KEY_BUILD \
           --env KEY_BUILD_PUB \
           --env KEY_VERIFY \
+          --env PRIVATE_KEY \
+          --env PUBLIC_KEY_VERIFY \
           --env NO_SIGNATURE_CHECK \
           --env DISABLED_SERVICES \
           --env PROFILE \
