@@ -15,6 +15,7 @@ jobs:
           - 24.10.1
           - 23.05.5
         target:
+          - ['armsr', 'armv8']
           - ['ipq806x', 'generic']
           - ['ath79', 'nand']
           - ['x86', '64']
