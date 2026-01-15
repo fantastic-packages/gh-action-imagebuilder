@@ -12,6 +12,7 @@ as artifacts.
 name: Test Build
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -42,11 +43,14 @@ jobs:
           fetch-depth: 0
 
       - name: Determine branch name
+        shell: bash
         env:
-          VERSION: ${{ matrix.release }}
+          OP_VERSION: ${{ matrix.release }}
         run: |
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          BRANCH="${VERSION%.*}"
+          FMTED_VERSION=$([ -z "$OP_VERSION" ] || grep -qiE "^(main|master|snapshots?)$" <<< "$OP_VERSION" || echo "$OP_VERSION")
+          echo "Building for $FMTED_VERSION"
+          echo "FMTED_VERSION=$FMTED_VERSION" >> $GITHUB_ENV
+          BRANCH=$([ -z "$FMTED_VERSION" ] && echo SNAPSHOT || grep -oE '^[0-9]+\.[0-9]+' <<< "$FMTED_VERSION")
           echo "Building for $BRANCH"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
 
@@ -57,20 +61,35 @@ jobs:
           echo "Target name is $TARGET"
           echo "TARGET=${TARGET/\//-}" >> $GITHUB_ENV
 
+      - name: Add test directories
+        run: mkdir artifacts repo
+
       - name: Build
         uses: fantastic-packages/gh-action-imagebuilder@24.10
         env:
           TARGET: ${{ matrix.target }}
-          VERSION: ${{ matrix.release }}
-          PROFILE: ${{ matrix.profile}}
-          REPO_DIR: ${{ github.workspace }}/releases/packages-${{ env.BRANCH }}/${{ matrix.arch }}/luci
-          PACKAGES: bash natmapt
+          VERSION: ${{ env.FMTED_VERSION }}
+          PROFILE: ${{ matrix.profile }}
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          REPO_DIR: ${{ github.workspace }}/repo
+          EXTRA_REPOS: >-
+            src/gz|fantastic_packages|https://raw.githubusercontent.com/fantastic-packages/releases/archive/${{ env.BRANCH }}/packages/${{ matrix.arch }}/packages
+            src/gz|fantastic_luci|https://raw.githubusercontent.com/fantastic-packages/releases/archive/${{ env.BRANCH }}/packages/${{ matrix.arch }}/luci
+            src/gz|fantastic_special|https://raw.githubusercontent.com/fantastic-packages/releases/archive/${{ env.BRANCH }}/packages/${{ matrix.arch }}/special
+          NO_LOCAL_REPOS: 1
+          KEY_VERIFY: >-
+            dW50cnVzdGVkIGNvbW1lbnQ6IFB1YmxpYyB1c2lnbiBrZXkgZm9yIGZhbnRhc3RpYy1wYWNrYWdlcyBidWlsZHMKUldSVC95dG1jaVE5S0ZqSEU4RFE5N3BpWDdvSHZkcjQ5SDNWTGxKRHVKTm11YUtGZ3VPcndYQkcK
+          PACKAGES: nano fastfetch
+          ROOTFS_SIZE: 256
+
+      - name: Verify images saved
+        run: find artifacts/bin/targets/${{ matrix.target }}/ -maxdepth 1 -type f | grep .
 
       - name: Store images
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.release }}-${{ env.TARGET }}-${{ matrix.profile }}-images
-          path: bin/targets/${{ matrix.target }}/
+          path: artifacts/bin/targets/${{ matrix.target }}/
 ```
 
 ## Environmental variables
