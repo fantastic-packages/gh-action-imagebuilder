@@ -12,6 +12,7 @@ as artifacts.
 name: Test Build
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -42,11 +43,14 @@ jobs:
           fetch-depth: 0
 
       - name: Determine branch name
+        shell: bash
         env:
-          VERSION: ${{ matrix.release }}
+          OP_VERSION: ${{ matrix.release }}
         run: |
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          BRANCH="${VERSION%.*}"
+          FMTED_VERSION=$([ -z "$OP_VERSION" ] || grep -qiE "^(main|master|snapshots?)$" <<< "$OP_VERSION" || echo "$OP_VERSION")
+          echo "Building for $FMTED_VERSION"
+          echo "FMTED_VERSION=$FMTED_VERSION" >> $GITHUB_ENV
+          BRANCH=$([ -z "$FMTED_VERSION" ] && echo SNAPSHOT || grep -oE '^[0-9]+\.[0-9]+' <<< "$FMTED_VERSION")
           echo "Building for $BRANCH"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
 
@@ -57,6 +61,9 @@ jobs:
           echo "Target name is $TARGET"
           echo "TARGET=${TARGET/\//-}" >> $GITHUB_ENV
 
+      - name: Add test directories
+        run: mkdir artifacts repo
+
       - name: Build
         uses: fantastic-packages/gh-action-imagebuilder@master
         with:
@@ -64,16 +71,28 @@ jobs:
           token: ${{ secrets.NEW_PERSONAL_ACCESS_TOKEN }} # only required when `cache` is enabled, used to push content to the `openwrt.org-cache` repository
         env:
           TARGET: ${{ matrix.target }}
-          VERSION: ${{ matrix.release }}
-          PROFILE: ${{ matrix.profile}}
-          REPO_DIR: ${{ github.workspace }}/releases/packages-${{ env.BRANCH }}/${{ matrix.arch }}/luci
-          PACKAGES: bash natmapt
+          VERSION: ${{ env.FMTED_VERSION }}
+          PROFILE: ${{ matrix.profile }}
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          REPO_DIR: ${{ github.workspace }}/repo
+          EXTRA_REPOS: >-
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/packages/packages.adb
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/luci/packages.adb
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/special/packages.adb
+          NO_LOCAL_REPOS: 1
+          PUBLIC_KEY_VERIFY: >-
+            LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0NCk1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRVAxYkJEVDRSMVF1aFVXWTVxcUkxRk5RMHJzaEUNCk9oNTF4ZVZjTGFab1lrVVdOVEJVdGxUUU5Hc1dJY0ZGbjY2Y3VuNERGWTFrTFR6RjhrNVYxNDBaWGc9PQ0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tDQoK
+          PACKAGES: nano fastfetch
+          ROOTFS_SIZE: 256
+
+      - name: Verify images saved
+        run: find artifacts/bin/targets/${{ matrix.target }}/ -maxdepth 1 -type f | grep .
 
       - name: Store images
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.release }}-${{ env.TARGET }}-${{ matrix.profile }}-images
-          path: bin/targets/${{ matrix.target }}/
+          path: artifacts/bin/targets/${{ matrix.target }}/
 ```
 
 ## Environmental variables

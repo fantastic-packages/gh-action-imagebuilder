@@ -1,6 +1,7 @@
 name: Test
 
 on:
+  workflow_dispatch:
   pull_request:
 
 jobs:
@@ -11,23 +12,40 @@ jobs:
       fail-fast: false
       matrix:
         release:
-          - 23.05.5
-          - 24.10.4
-        target:
-          - 'armsr/armv8'
-          - 'ipq806x/generic'
-          - 'ath79/nand'
-          - 'x86/64'
+          - 25.12-SNAPSHOT
+          - 25.12.0-rc2
+        arch:
+          - mips_24kc
+          - x86_64
+        include:
+          - arch: mips_24kc
+            target: ath79/nand
+            profile: netgear_wndr4300
+          - arch: x86_64
+            target: x86/64
+            profile: generic
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Generate full target name
+      - name: Determine branch name
+        shell: bash
         env:
-          TARGET: ${{ format('{0}-{1}', matrix.target[0], matrix.target[1]) }}
+          OP_VERSION: ${{ matrix.release }}
         run: |
-          echo "Full target name is $TARGET"
-          echo "TARGET=$TARGET" >> $GITHUB_ENV
+          FMTED_VERSION=$([ -z "$OP_VERSION" ] || grep -qiE "^(main|master|snapshots?)$" <<< "$OP_VERSION" || echo "$OP_VERSION")
+          echo "Building for $FMTED_VERSION"
+          echo "FMTED_VERSION=$FMTED_VERSION" >> $GITHUB_ENV
+          BRANCH=$([ -z "$FMTED_VERSION" ] && echo SNAPSHOT || grep -oE '^[0-9]+\.[0-9]+' <<< "$FMTED_VERSION")
+          echo "Building for $BRANCH"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Generate target name
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          echo "Target name is $TARGET"
+          echo "TARGET=${TARGET/\//-}" >> $GITHUB_ENV
 
       - name: Add test directories
         run: mkdir artifacts repo
@@ -36,10 +54,25 @@ jobs:
         uses: ./
         env:
           TARGET: ${{ matrix.target }}
-          VERSION: ${{ matrix.release }}
+          VERSION: ${{ env.FMTED_VERSION }}
+          PROFILE: ${{ matrix.profile }}
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          FEED_DIR: ${{ github.workspace }}/feed
-          PACKAGES: vim privoxy
+          REPO_DIR: ${{ github.workspace }}/repo
+          EXTRA_REPOS: >-
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/packages/packages.adb
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/luci/packages.adb
+            https://raw.githubusercontent.com/fantastic-packages/releases/gh-pages/${{ env.BRANCH }}/packages/${{ matrix.arch }}/special/packages.adb
+          NO_LOCAL_REPOS: 1
+          PUBLIC_KEY_VERIFY: >-
+            LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0NCk1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRVAxYkJEVDRSMVF1aFVXWTVxcUkxRk5RMHJzaEUNCk9oNTF4ZVZjTGFab1lrVVdOVEJVdGxUUU5Hc1dJY0ZGbjY2Y3VuNERGWTFrTFR6RjhrNVYxNDBaWGc9PQ0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tDQoK
+          PACKAGES: nano fastfetch
+          ROOTFS_SIZE: 256
 
       - name: Verify images saved
         run: find artifacts/bin/targets/${{ matrix.target }}/ -maxdepth 1 -type f | grep .
+
+      - name: Store images
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.release }}-${{ env.TARGET }}-${{ matrix.profile }}-images
+          path: artifacts/bin/targets/${{ matrix.target }}/
