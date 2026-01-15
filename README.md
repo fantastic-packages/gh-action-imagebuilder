@@ -18,76 +18,83 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.target[0] }}-${{ matrix.target[1] }} build
+    name: ${{ matrix.release }} ${{ matrix.target }} build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: [21.02.5, 22.03.5]
+        release:
+          - 23.05.5
+          - 24.10.1
         arch:
-          - x86_64
           - mips_24kc
+          - x86_64
         include:
-          - arch: x86_64
-            target: ['x86', '64']
           - arch: mips_24kc
-            target: ['ath79', 'nand']
+            target: ath79/nand
             profile: netgear_wndr4300
+          - arch: x86_64
+            target: x86/64
+            profile: generic
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Determine branch name
         env:
-          VERSION: ${{ matrix.version }}
+          VERSION: ${{ matrix.release }}
         run: |
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           BRANCH="${VERSION%.*}"
           echo "Building for $BRANCH"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
 
-      - name: Generate full target name
+      - name: Generate target name
         env:
-          TARGET: ${{ format('{0}-{1}', matrix.target[0], matrix.target[1]) }}
+          TARGET: ${{ matrix.target }}
         run: |
-          echo "Full target name is $TARGET"
-          echo "TARGET=$TARGET" >> $GITHUB_ENV
+          echo "Target name is $TARGET"
+          echo "TARGET=${TARGET/\//-}" >> $GITHUB_ENV
 
       - name: Build
-        uses: muink/gh-action-imagebuilder@master
+        uses: fantastic-packages/gh-action-imagebuilder@24.10
         env:
-          ARCH: ${{ env.TARGET }}-${{ env.VERSION }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ matrix.release }}
           PROFILE: ${{ matrix.profile}}
           REPO_DIR: ${{ github.workspace }}/releases/packages-${{ env.BRANCH }}/${{ matrix.arch }}/luci
           PACKAGES: bash natmapt
 
       - name: Store images
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ env.TARGET }}-${{ matrix.profile }}-images
-          path: bin/targets/${{ matrix.target[0] }}/${{ matrix.target[1] }}/
+          name: ${{ matrix.release }}-${{ env.TARGET }}-${{ matrix.profile }}-images
+          path: bin/targets/${{ matrix.target }}/
 ```
 
 ## Environmental variables
 
 The action reads a few env variables:
 
-* `ARCH` determines the used OpenWrt ImageBuilder Docker container.
-  E.g. `x86-64` or `x86-64-22.03.2`.
+* `FILE_HOST` determines the used OpenWrt download server.
+  E.g. `https://downloads.openwrt.org` or `https://mirrors.cicku.me/openwrt`.
+* `TARGET` determines the used OpenWrt ImageBuilder target.
+  E.g. `x86/64` or `ath79/generic`.
+* `VERSION` determines the used OpenWrt ImageBuilder version.
+  E.g. `24.10.5` or `24.10-SNAPSHOT` or `snapshots`.
 * `ARTIFACTS_DIR` determines where built images are saved.
   Defaults to the default working directory (`GITHUB_WORKSPACE`).
-* `CONTAINER` can set other ImageBuilder containers than `openwrt/imagebuilder`.
 * `EXTRA_REPOS` are added to the `repositories.conf`, where `|` are replaced by white
   spaces.
-* `NO_DEFAULT_REPOS` disable adding the default ImageBuilder repos
-* `NO_LOCAL_REPOS` disable adding the default working directory as repo
 * `REPO_DIR` used to add current repo to `repositories.conf`. Defaults to
   the default working directory (`GITHUB_WORKSPACE`).
 * `KEY_BUILD` can be a private Signify/`usign` key to sign the images.
 * `KEY_BUILD_PUB` the paired public key of the above private key.
 * `KEY_VERIFY` public keys for `usign` used to verify repos. Format is `'<key1 string>'
   '<key2 string>' '<key3 string>'`. key string must be preprocessed into base64 str
+* `NO_DEFAULT_REPOS` disable adding the default ImageBuilder repos
+* `NO_LOCAL_REPOS` disable adding the `REPO_DIR` as repo
 * `NO_SIGNATURE_CHECK` not check packages signature. If your repos is not
   signed by `usign`, please enable this.
 * `DISABLED_SERVICES` which services in `/etc/init.d/` should be disabled

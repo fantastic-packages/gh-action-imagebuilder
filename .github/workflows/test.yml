@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    name: Test ${{ matrix.target[0] }}-${{ matrix.target[1] }}-${{ matrix.release }}
+    name: Test ${{ matrix.release }}-${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -15,20 +15,13 @@ jobs:
           - 24.10.1
           - 23.05.5
         target:
-          - ['armsr', 'armv8']
-          - ['ipq806x', 'generic']
-          - ['ath79', 'nand']
-          - ['x86', '64']
+          - 'armsr/armv8'
+          - 'ipq806x/generic'
+          - 'ath79/nand'
+          - 'x86/64'
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate full target name
-        env:
-          TARGET: ${{ format('{0}-{1}', matrix.target[0], matrix.target[1]) }}
-        run: |
-          echo "Full target name is $TARGET"
-          echo "TARGET=$TARGET" >> $GITHUB_ENV
+      - uses: actions/checkout@v6
 
       - name: Add test directories
         run: mkdir artifacts repo
@@ -36,10 +29,11 @@ jobs:
       - name: Build
         uses: ./
         env:
-          ARCH: ${{ env.TARGET }}-${{ matrix.release }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ matrix.release }}
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
           REPO_DIR: ${{ github.workspace }}/repo
           PACKAGES: vim privoxy
 
-      - name: Verify packages saved
-        run: find artifacts/bin/targets/${{ matrix.target[0] }}/${{ matrix.target[1] }}/ -maxdepth 1 -type f | grep .
+      - name: Verify images saved
+        run: find artifacts/bin/targets/${{ matrix.target }}/ -maxdepth 1 -type f | grep .
