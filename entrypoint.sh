@@ -35,20 +35,17 @@ bash setup.sh
 endgroup
 
 # rules
-eval "$(grep CONFIG_TARGET_BOARD .config)"
-eval "$(grep CONFIG_TARGET_SUBTARGET .config)"
-[ -z "$(grep CONFIG_USE_APK .config)" ] || export USE_APK=y
-export BOARD=$CONFIG_TARGET_BOARD
-export SUBTARGET=$CONFIG_TARGET_SUBTARGET
-export TOPDIR=$(pwd)
-export OUTPUT_DIR=$TOPDIR/bin
-export BIN_DIR=$OUTPUT_DIR/targets/$BOARD/$SUBTARGET
-export SCRIPT_DIR=$TOPDIR/scripts
-export KEYS_DIR=$TOPDIR/keys
-export BUILD_KEY=$TOPDIR/key-build
-export BUILD_KEY_APK_SEC=$TOPDIR/keys/local-private-key.pem
-export BUILD_KEY_APK_PUB=$TOPDIR/keys/local-public-key.pem
-export STAGING_DIR_HOST=$TOPDIR/staging_dir/host
+export BOARD=$(make val.BOARD)
+export SUBTARGET=$(make val.SUBTARGET)
+export TOPDIR="$(make val.TOPDIR)"
+export OUTPUT_DIR="$(make val.OUTPUT_DIR)"
+export BIN_DIR="$(make val.BIN_DIR)"
+export SCRIPT_DIR="$(make val.SCRIPT_DIR)"
+export KEYS_DIR="$TOPDIR/keys"
+export BUILD_KEY="$(make val.BUILD_KEY)"
+export BUILD_KEY_APK_SEC="$(make val.BUILD_KEY_APK_SEC)"
+export BUILD_KEY_APK_PUB="$(make val.BUILD_KEY_APK_PUB)"
+export STAGING_DIR_HOST="$(make val.STAGING_DIR_HOST)"
 PATHBK="$PATH"
 export PATH="$STAGING_DIR_HOST/bin:$PATH"
 
