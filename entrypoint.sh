@@ -41,7 +41,7 @@ export TOPDIR="$(make val.TOPDIR)"
 export OUTPUT_DIR="$(make val.OUTPUT_DIR)"
 export BIN_DIR="$(make val.BIN_DIR)"
 export SCRIPT_DIR="$(make val.SCRIPT_DIR)"
-export KEYS_DIR="$TOPDIR/keys"
+export APK_KEYS="$TOPDIR/keys"
 export BUILD_KEY="$(make val.BUILD_KEY)"
 export BUILD_KEY_APK_SEC="$(make val.BUILD_KEY_APK_SEC)"
 export BUILD_KEY_APK_PUB="$(make val.BUILD_KEY_APK_PUB)"
@@ -70,12 +70,12 @@ fi
 if [ -n "$PUBLIC_KEY_VERIFY" ]; then
 	for _key in $PUBLIC_KEY_VERIFY; do
 		base64 -d <<< "$_key" > /tmp/_key
-		cp -f /tmp/_key $KEYS_DIR/$(md5sum /tmp/_key | awk '{print $1}').pem
+		cp -f /tmp/_key $APK_KEYS/$(md5sum /tmp/_key | awk '{print $1}').pem
 	done
 fi
 
-group "ls -R $KEYS_DIR"
-ls -R $KEYS_DIR
+group "ls -R $APK_KEYS"
+ls -R $APK_KEYS
 endgroup
 
 n=$(sed -n '$=' repositories)
