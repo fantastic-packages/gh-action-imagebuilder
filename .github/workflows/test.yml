@@ -65,7 +65,7 @@ jobs:
           NO_LOCAL_REPOS: 1
           KEY_VERIFY: >-
             dW50cnVzdGVkIGNvbW1lbnQ6IFB1YmxpYyB1c2lnbiBrZXkgZm9yIGZhbnRhc3RpYy1wYWNrYWdlcyBidWlsZHMKUldSVC95dG1jaVE5S0ZqSEU4RFE5N3BpWDdvSHZkcjQ5SDNWTGxKRHVKTm11YUtGZ3VPcndYQkcK
-          PACKAGES: nano fastfetch
+          PACKAGES: nano fastfetch luci-app-ipinfo
           ROOTFS_SIZE: 256
 
       - name: Verify images saved
